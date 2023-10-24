@@ -2,6 +2,8 @@ package com.thegeekyasian.geoassist.kdtree;
 
 import com.thegeekyasian.geoassist.kdtree.geometry.Point;
 
+import java.io.Serializable;
+
 /**
  * The KDTreeObject class represents an object that can be inserted into a KD-Tree.
  * Each object is associated with a point in the k-dimensional space and has
@@ -17,7 +19,9 @@ import com.thegeekyasian.geoassist.kdtree.geometry.Point;
  *
  * @author The Geeky Asian
  */
-public final class KDTreeObject<T, O> {
+public final class KDTreeObject<T, O> implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	private T id;
 

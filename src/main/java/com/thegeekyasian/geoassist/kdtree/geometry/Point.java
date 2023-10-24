@@ -2,13 +2,18 @@ package com.thegeekyasian.geoassist.kdtree.geometry;
 
 import com.thegeekyasian.geoassist.core.GeoAssistException;
 
+import java.io.Serializable;
+
 /**
  * The Point class represents a point in the geographic coordinate system, with a latitude and longitude.
  * It provides a Builder class for constructing instances of the Point class.
  *
  * @author The Geeky Asian
  */
-public class Point {
+public class Point implements Serializable {
+
+	private static final long serialVersionUID = 1L;
+
 	private double latitude;
 
 	private double longitude;

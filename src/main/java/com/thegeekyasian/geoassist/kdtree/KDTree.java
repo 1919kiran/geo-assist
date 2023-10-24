@@ -11,6 +11,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import com.thegeekyasian.geoassist.core.GeoAssistException;
 import com.thegeekyasian.geoassist.kdtree.geometry.BoundingBox;
 import com.thegeekyasian.geoassist.kdtree.geometry.Point;
+import com.thegeekyasian.geoassist.persistence.WALManager;
+import com.thegeekyasian.geoassist.persistence.WALTransactionRecord;
 
 /**
  * <p>
@@ -47,14 +49,19 @@ public class KDTree<T, O> implements Serializable {
 
 	private final AtomicInteger size = new AtomicInteger(0);
 
+	private final WALManager<T, O> walManager;
 
 	/**
 	 * Creates a new instance of KDTree.
 	 * */
 	public KDTree() {
 		this.root = null;
+		this.walManager = null;
 	}
 
+	public KDTree(String wal) {
+		this.walManager = new WALManager<>(wal);
+	}
 
 	/**
 	 * Inserts the provided KDTreeObject on the tree,
@@ -66,13 +73,18 @@ public class KDTree<T, O> implements Serializable {
 	 * @throws GeoAssistException is thrown when a duplicate ID is provided.
 	 * */
 	public void insert(KDTreeObject<T, O> kdTreeObject) {
-		insertObject(kdTreeObject);
+		insert(kdTreeObject, true);
 	}
 
-	private void insertObject(KDTreeObject<T, O> object) {
+	public void insert(KDTreeObject<T, O> object, boolean logTransaction) {
 
 		if (getById(object.getId()) != null) {
 			throw new GeoAssistException("Duplicate object provided.");
+		}
+
+		if(logTransaction && walManager != null) {
+			WALTransactionRecord<T, O> record = WALTransactionRecord.forInsert(object);
+			walManager.appendToLog(record);
 		}
 
 		if (this.root == null) {
@@ -402,15 +414,24 @@ public class KDTree<T, O> implements Serializable {
 	/**
 	 * Updates the custom data by replacing it in the KDTreeObject with the provided data.
 	 *
-	 * @param id ID of the custom object that is desired to be deleted.
+	 * @param id ID of the custom object that is desired to be updated.
 	 *
 	 * @param data Custom data to be updated in the KDTreeObject of provided ID.
 	 *
 	 * @throws GeoAssistException is thrown an object with provided ID is not found.
 	 * */
 	public void update(T id, O data) {
+		update(id, data, true);
+	}
+
+
+	public void update(T id, O data, boolean logTransaction) {
 		Optional.ofNullable(this.map.get(id))
 			.map(node -> {
+				if (logTransaction && this.walManager != null) {
+					WALTransactionRecord<T, O> record = WALTransactionRecord.forUpdate(id, data);
+					this.walManager.appendToLog(record);
+				}
 				node.getKdTreeObject().setData(data);
 				return node.getKdTreeObject();
 			}).orElseThrow(() -> new GeoAssistException("No object found for provided ID"));
@@ -425,7 +446,15 @@ public class KDTree<T, O> implements Serializable {
 	 * and `false` otherwise.
 	 * */
 	public boolean delete(T id) {
+		return delete(id, true);
+	}
+
+	public boolean delete(T id, boolean logTransaction) {
 		return Optional.ofNullable(this.map.get(id)).map(node -> {
+			if (logTransaction && this.walManager != null) {
+				WALTransactionRecord<T, O> record = WALTransactionRecord.forDelete(id);
+				this.walManager.appendToLog(record);
+			}
 			deleteNode(node);
 			this.map.remove(id);
 			return true;
@@ -613,5 +642,23 @@ public class KDTree<T, O> implements Serializable {
 			Math.sin(dLon / 2) * Math.sin(dLon / 2) * Math.cos(lat1) * Math.cos(lat2);
 		double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 		return R * c;
+	}
+
+	/**
+	 * Initiates the data recovery process for the current {@code KDTree} instance.
+	 *
+	 * This method triggers the recovery of data by instructing the associated WALManager
+	 * to replay the transaction logs. The state of the current instance is expected to
+	 * revert to the last consistent state captured in the logs upon successful completion
+	 * of this method. This is typically used during system recovery or when the data
+	 * integrity needs to be re-established.
+	 *
+	 * @throws GeoAssistException if any issues occur during the log replay, such as an
+	 *         IOException during file access.
+	 */
+	public void recoverData() {
+		if (this.walManager != null) {
+			this.walManager.replayLogs(this);
+		}
 	}
 }

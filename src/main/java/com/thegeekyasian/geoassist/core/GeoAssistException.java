@@ -9,4 +9,8 @@ public class GeoAssistException extends RuntimeException {
 	public GeoAssistException(String message) {
 		super(message);
 	}
+
+	public GeoAssistException(String message, Throwable cause) {
+		super(message, cause);
+	}
 }

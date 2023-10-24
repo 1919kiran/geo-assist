@@ -2,13 +2,17 @@ package com.thegeekyasian.geoassist.kdtree.geometry;
 
 import com.thegeekyasian.geoassist.core.GeoAssistException;
 
+import java.io.Serializable;
+
 /**
  * The BoundingBox class represents a rectangular region in 2D space.
  * It is defined by a lower-left and an upper-right point.
  *
  * @author The Geeky Asian
  */
-public class BoundingBox {
+public class BoundingBox implements Serializable {
+
+	private static final long serialVersionUID = 1L;
 
 	/**
 	 * The lower-left point of the bounding box.
